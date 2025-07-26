@@ -15,6 +15,7 @@ NC='\033[0m'
 
 # Configuration
 APP_URL="http://localhost:8081"
+LB_URL="http://localhost:8082"
 HEALTH_ENDPOINT="$APP_URL/health"
 MAX_RETRIES=5
 RETRY_DELAY=5

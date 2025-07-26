@@ -103,7 +103,7 @@ cp .env.example .env
 npm run dev
 
 # 5. Open browser
-open http://localhost:5173
+open http://localhost:8081
 ```
 
 ## 🐳 Docker Deployment
