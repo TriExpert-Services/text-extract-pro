@@ -4,6 +4,7 @@ import { ExtractionResult } from '../components/Extract/ExtractionResult'
 import { useAuth } from '../contexts/AuthContext'
 import { useApp } from '../contexts/AppContext'
 import { supabase } from '../lib/supabase'
+import { ocrService } from '../lib/ocr'
 import { OpenAIService } from '../lib/openai'
 import toast from 'react-hot-toast'
 import { AlertTriangle } from 'lucide-react'
@@ -25,88 +26,30 @@ export function ExtractPage() {
     const startTime = Date.now()
     
     try {
-      // Convert file to base64 for OpenAI
-      const base64 = await fileToBase64(file)
-      
-      // Initialize OpenAI service
-      const openaiService = new OpenAIService(openaiApiKey)
-      
-      // Extract text based on file type
+      // Step 1: Extract text using OCR
       let extractedText = ''
       let confidence = 0.5
+      let processingTime = 0
       
-      if (file.type.startsWith('image/')) {
-        const result = await openaiService.extractTextFromImage(base64)
-        extractedText = result.text
-        confidence = result.confidence
-      } else if (file.type === 'application/pdf') {
-        // For PDFs, use specialized extraction with fallback strategies
-        const result = await openaiService.extractTextFromDocument(base64, file.type, file.name)
-        extractedText = result.text
-        confidence = result.confidence
-      } else if (file.type.includes('word') || file.type.includes('document')) {
-        // For Word documents with structure preservation
-        const result = await openaiService.extractTextFromDocument(base64, file.type, file.name)
-        extractedText = result.text
-        confidence = result.confidence
-      } else if (file.type.startsWith('text/')) {
-        // For plain text files, read directly with high confidence
-        const textContent = await file.text()
-        extractedText = textContent
-        confidence = 0.95
-      } else {
-        // For other file types, attempt extraction with OpenAI
-        try {
-          const result = await openaiService.extractTextFromDocument(base64, file.type, file.name)
-          extractedText = result.text
-          confidence = result.confidence
-        } catch (error) {
-          // If extraction fails, provide helpful error message
-          throw new Error(`Cannot extract text from ${file.type} files. Supported formats: PDF, DOC, DOCX, TXT, and images (PNG, JPG, GIF).`)
-        }
+      try {
+        const ocrResult = await ocrService.extractTextFromDocument(file)
+        extractedText = ocrResult.text
+        confidence = ocrResult.confidence
+        processingTime = ocrResult.processingTime
+        
+        toast.success(`OCR completed for ${file.name}`)
+      } catch (ocrError) {
+        console.error('OCR extraction failed:', ocrError)
+        throw new Error(`OCR extraction failed: ${ocrError instanceof Error ? ocrError.message : 'Unknown error'}`)
+      }
+      
+      if (!extractedText || extractedText.trim().length === 0) {
+        throw new Error('No text could be extracted from this document')
       }
 
-      const processingTime = Date.now() - startTime
-
-      // Save to Supabase
+      // Step 2: Save raw OCR result to database
       if (user) {
-        // Upload file to Supabase storage
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('documents')
-          .upload(fileName, file)
-
-        if (uploadError) {
-          console.error('Upload error:', uploadError)
-        } else {
-          // Get public URL
-          const { data: { publicUrl } } = supabase.storage
-            .from('documents')
-            .getPublicUrl(fileName)
-
-          // Save extraction record
-          const { error: insertError } = await supabase
-            .from('extractions')
-            .insert({
-              user_id: user.id,
-              file_name: file.name,
-              file_url: publicUrl,
-              file_type: file.type,
-              file_size: file.size,
-              extracted_text: extractedText,
-              confidence_score: confidence,
-              processing_time: processingTime
-            })
-
-          if (insertError) {
-            console.error('Insert error:', insertError)
-          }
-
-          // Update user analytics
-          await updateUserAnalytics(user.id, extractedText.length, confidence)
-        }
+        await this.saveExtractionToDatabase(file, extractedText, confidence, processingTime)
       }
 
       return {
@@ -121,16 +64,53 @@ export function ExtractPage() {
     }
   }
 
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = () => {
-        const base64 = reader.result as string
-        resolve(base64.split(',')[1]) // Remove data:image/jpeg;base64, prefix
+  const saveExtractionToDatabase = async (
+    file: File, 
+    extractedText: string, 
+    confidence: number, 
+    processingTime: number
+  ) => {
+    try {
+      // Upload file to Supabase storage
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user!.id}/${Date.now()}.${fileExt}`
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(fileName, file)
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError)
+      } else {
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('documents')
+          .getPublicUrl(fileName)
+
+        // Save extraction record
+        const { error: insertError } = await supabase
+          .from('extractions')
+          .insert({
+            user_id: user!.id,
+            file_name: file.name,
+            file_url: publicUrl,
+            file_type: file.type,
+            file_size: file.size,
+            extracted_text: extractedText,
+            confidence_score: confidence,
+            processing_time: processingTime
+          })
+
+        if (insertError) {
+          console.error('Insert error:', insertError)
+        }
+
+        // Update user analytics
+        await updateUserAnalytics(user!.id, extractedText.length, confidence)
       }
-      reader.onerror = error => reject(error)
-    })
+    } catch (error) {
+      console.error('Database save error:', error)
+    }
   }
 
   const updateUserAnalytics = async (userId: string, textLength: number, confidence: number) => {
@@ -174,11 +154,6 @@ export function ExtractPage() {
   }
 
   const handleFileSelect = async (files: File[]) => {
-    if (!openaiApiKey) {
-      toast.error('Please configure your OpenAI API key in settings')
-      return
-    }
-
     if (files.length === 0) {
       toast.error('No files selected')
       return
@@ -222,7 +197,11 @@ export function ExtractPage() {
 
     const openaiService = new OpenAIService(openaiApiKey)
     try {
-      const result = await openaiService.enhanceExtractedText(text.trim())
+      // Enhanced with context about being OCR-extracted text
+      const result = await openaiService.enhanceExtractedText(
+        text.trim(), 
+        'This text was extracted using OCR and may contain recognition errors'
+      )
       if (!result.enhancedText || result.enhancedText === text) {
         throw new Error('No enhancement received')
       }
@@ -233,26 +212,6 @@ export function ExtractPage() {
     }
   }
 
-  if (!openaiApiKey) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className={`rounded-lg p-6 ${isDarkMode ? 'bg-yellow-900/20 border border-yellow-800' : 'bg-yellow-50 border border-yellow-200'}`}>
-          <div className="flex">
-            <AlertTriangle className="h-6 w-6 text-yellow-500 flex-shrink-0" />
-            <div className="ml-3">
-              <h3 className={`text-lg font-medium ${isDarkMode ? 'text-yellow-300' : 'text-yellow-800'}`}>
-                OpenAI API Key Required
-              </h3>
-              <p className={`mt-2 text-sm ${isDarkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
-                Please configure your OpenAI API key in the settings to start extracting text from documents and images.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-8">
@@ -260,9 +219,25 @@ export function ExtractPage() {
           Extract Text
         </h1>
         <p className={`mt-2 text-lg ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Upload documents and images to extract text using advanced AI technology
+          Upload documents and images to extract text using OCR technology
         </p>
       </div>
+
+      {!openaiApiKey && (
+        <div className={`mb-6 rounded-lg p-4 ${isDarkMode ? 'bg-blue-900/20 border border-blue-800' : 'bg-blue-50 border border-blue-200'}`}>
+          <div className="flex">
+            <AlertTriangle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+            <div className="ml-3">
+              <h3 className={`text-sm font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                Optional: AI Enhancement Available
+              </h3>
+              <p className={`mt-1 text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>
+                Configure your OpenAI API key in settings to enable AI-powered text enhancement and correction.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-8">
         <FileUpload onFileSelect={handleFileSelect} loading={loading} />
