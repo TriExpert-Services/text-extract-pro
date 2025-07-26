@@ -39,11 +39,30 @@ export function ExtractPage() {
         const result = await openaiService.extractTextFromImage(base64)
         extractedText = result.text
         confidence = result.confidence
+      } else if (file.type === 'application/pdf') {
+        // For PDFs, convert to base64 and use OpenAI to extract text
+        const result = await openaiService.extractTextFromDocument(base64, file.type, file.name)
+        extractedText = result.text
+        confidence = result.confidence
+      } else if (file.type.includes('word') || file.type.includes('document')) {
+        // For Word documents
+        const result = await openaiService.extractTextFromDocument(base64, file.type, file.name)
+        extractedText = result.text
+        confidence = result.confidence
+      } else if (file.type.startsWith('text/')) {
+        // For plain text files, read directly
+        const textContent = await file.text()
+        extractedText = textContent
+        confidence = 0.95
       } else {
-        // For other file types, you would implement specific parsers
-        // For now, we'll simulate text extraction
-        extractedText = `Text extracted from ${file.name} (simulated)`
-        confidence = 0.8
+        // For unsupported file types, try with OpenAI anyway
+        try {
+          const result = await openaiService.extractTextFromDocument(base64, file.type, file.name)
+          extractedText = result.text
+          confidence = result.confidence
+        } catch (error) {
+          throw new Error(`Unsupported file type: ${file.type}. Please upload images, PDFs, Word documents, or text files.`)
+        }
       }
 
       const processingTime = Date.now() - startTime

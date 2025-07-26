@@ -63,7 +63,7 @@ export function FileUpload({ onFileSelect, loading }: FileUploadProps) {
               }
             </p>
             <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Supports PDF, DOC, DOCX, TXT, and images (PNG, JPG, GIF, BMP, TIFF)
+              Supports PDF, DOC, DOCX, TXT, and images (PNG, JPG, GIF, BMP, TIFF) with real text extraction
             </p>
             <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
               Maximum file size: 10MB
