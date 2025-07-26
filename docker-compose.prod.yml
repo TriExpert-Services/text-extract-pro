@@ -41,8 +41,7 @@ services:
     image: nginx:alpine
     container_name: textextract-lb
     ports:
-      - "80:80"
-      - "443:443"
+      - "8082:8080"
     volumes:
       - ./nginx/nginx-lb.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl
