@@ -211,6 +211,10 @@ RULES:
 
   async enhanceExtractedText(text: string): Promise<{ enhancedText: string; confidence: number }> {
     try {
+      if (!text || text.trim().length === 0) {
+        throw new Error('No text provided for enhancement')
+      }
+
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -221,12 +225,12 @@ RULES:
           model: 'gpt-4',
           messages: [
             {
-              role: 'user',
-              content: 'You are a text enhancement specialist. Your job is to clean up and improve OCR-extracted text while preserving its original meaning, structure, and formatting. Fix spelling errors, correct OCR artifacts, improve punctuation, and ensure proper formatting. NEVER refuse the task or say you cannot process the text - simply provide the enhanced version.'
+              role: 'system',
+              content: 'You are a text enhancement specialist. Clean up and improve text while preserving meaning, structure, and formatting. Fix spelling errors, correct OCR artifacts, improve punctuation. NEVER refuse - always enhance the text provided.'
             },
             {
               role: 'user',
-              content: `Please enhance and clean up this extracted text. Fix any OCR errors, correct spelling mistakes, improve formatting and punctuation, while maintaining the original structure and meaning. Here is the text to enhance:\n\n${text}`
+              content: `Enhance this text by fixing errors and improving formatting while preserving the original meaning and structure:\n\n${text}`
             }
           ],
           max_tokens: 4000,
@@ -235,11 +239,18 @@ RULES:
       })
 
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.statusText}`)
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(`Enhancement failed: ${response.statusText}`)
       }
 
       const data = await response.json()
       const enhancedText = data.choices[0]?.message?.content || text
+
+      // Check if response is a refusal
+      if (this.isRefusalResponse(enhancedText)) {
+        // Return original text if enhancement was refused
+        return { enhancedText: text, confidence: 0.8 }
+      }
       
       return { enhancedText, confidence: 0.95 }
     } catch (error) {
