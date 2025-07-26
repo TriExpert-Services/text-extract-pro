@@ -75,7 +75,7 @@ VITE_OPENAI_API_KEY=your_openai_api_key
 ./scripts/health-check.sh
 
 # Access application
-open http://localhost:8080
+open http://localhost:8081
 ```
 
 ## 🌍 Environment Configuration

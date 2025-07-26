@@ -117,7 +117,7 @@ chmod +x scripts/*.sh
 ./scripts/deploy.sh
 
 # 3. Access application
-open http://localhost:8080
+open http://localhost:8081
 ```
 
 ### Production Deployment
