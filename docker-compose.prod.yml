@@ -1,5 +1,4 @@
 # Production Docker Compose with additional services
-version: '3.8'
 
 services:
   # Main application
