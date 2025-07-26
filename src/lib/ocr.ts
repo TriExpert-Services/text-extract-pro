@@ -1,8 +1,9 @@
 import Tesseract from 'tesseract.js'
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.js?url'
 
 // Configure PDF.js worker
-GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.3.93/pdf.worker.min.js'
+GlobalWorkerOptions.workerSrc = pdfjsWorker
 
 export interface OCRResult {
   text: string
