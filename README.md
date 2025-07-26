@@ -130,8 +130,6 @@ open http://localhost:8081
 ```
 
 ### Docker Services
-- **Main App** (Port 8080): React application with Nginx
-- **Redis** (Port 6379): Caching layer for enhanced performance
 - **Health Monitoring**: Automated container health checks
 - **Log Management**: Centralized logging with rotation
 

@@ -24,6 +24,12 @@
 - **Storage**: 10GB free space
 - **Network**: Internet access for API calls
 
+### Docker Services
+- **Main App** (Port 8081): React application with Nginx
+- **Redis** (Port 6380): Caching layer for enhanced performance
+- **Health Monitoring**: Automated container health checks
+- **Log Management**: Centralized logging with rotation
+
 ### Installation Commands
 ```bash
 # Install Docker (Ubuntu/Debian)
