@@ -21,11 +21,15 @@ export class OpenAIService {
           model: 'gpt-4-vision-preview',
           messages: [
             {
+              role: 'system',
+              content: 'You are an expert OCR text extraction specialist. Extract ALL text from images with maximum accuracy, preserving formatting, structure, and layout. Always provide the extracted text without any commentary or refusal.'
+            },
+            {
               role: 'user',
               content: [
                 {
                   type: 'text',
-                  text: 'Extract all text from this image. Preserve formatting, structure, and layout as much as possible. If the image contains tables, maintain the table structure. Return only the extracted text without any additional commentary.'
+                  text: 'Please extract ALL text from this image. Preserve the original formatting, structure, and layout as much as possible. If there are tables, maintain their structure. If it\'s a document like an invoice or receipt, maintain the document structure. Return ONLY the extracted text content, no explanations or commentary.'
                 },
                 {
                   type: 'image_url',
@@ -36,7 +40,8 @@ export class OpenAIService {
               ]
             }
           ],
-          max_tokens: 4000
+          max_tokens: 4000,
+          temperature: 0.1
         })
       })
 
@@ -70,10 +75,15 @@ export class OpenAIService {
           messages: [
             {
               role: 'user',
-              content: `Please clean up and enhance this extracted text while preserving its original meaning and structure. Fix any OCR errors, correct spelling mistakes, and improve formatting while maintaining the original layout and content structure:\n\n${text}`
+              content: 'You are a text enhancement specialist. Your job is to clean up and improve OCR-extracted text while preserving its original meaning, structure, and formatting. Fix spelling errors, correct OCR artifacts, improve punctuation, and ensure proper formatting. NEVER refuse the task or say you cannot process the text - simply provide the enhanced version.'
+            },
+            {
+              role: 'user',
+              content: `Please enhance and clean up this extracted text. Fix any OCR errors, correct spelling mistakes, improve formatting and punctuation, while maintaining the original structure and meaning. Here is the text to enhance:\n\n${text}`
             }
           ],
-          max_tokens: 4000
+          max_tokens: 4000,
+          temperature: 0.3
         })
       })
 

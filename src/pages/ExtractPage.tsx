@@ -196,9 +196,21 @@ export function ExtractPage() {
       throw new Error('OpenAI API key not configured')
     }
 
+    if (!text || text.trim().length === 0) {
+      throw new Error('No text to enhance')
+    }
+
     const openaiService = new OpenAIService(openaiApiKey)
-    const result = await openaiService.enhanceExtractedText(text)
-    return result.enhancedText
+    try {
+      const result = await openaiService.enhanceExtractedText(text.trim())
+      if (!result.enhancedText || result.enhancedText === text) {
+        throw new Error('No enhancement received')
+      }
+      return result.enhancedText
+    } catch (error) {
+      console.error('Enhancement error:', error)
+      throw new Error('Failed to enhance text. Please try again.')
+    }
   }
 
   if (!openaiApiKey) {

@@ -44,13 +44,20 @@ export function ExtractionResult({ result, onEnhance }: ExtractionResultProps) {
   const handleEnhance = async () => {
     if (!onEnhance) return
     
+    const textToEnhance = editedText.trim()
+    if (!textToEnhance) {
+      toast.error('No text to enhance')
+      return
+    }
+    
     setIsEnhancing(true)
     try {
-      const enhanced = await onEnhance(editedText)
+      const enhanced = await onEnhance(textToEnhance)
       setEnhancedText(enhanced)
       toast.success('Text enhanced successfully!')
     } catch (error) {
-      toast.error('Failed to enhance text')
+      console.error('Enhancement error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to enhance text')
     } finally {
       setIsEnhancing(false)
     }
