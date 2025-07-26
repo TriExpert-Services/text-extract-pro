@@ -9,10 +9,13 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --silent
+RUN npm ci --silent --no-audit --no-fund
 
 # Copy source code
 COPY . .
+
+# Update browserslist database
+RUN npx update-browserslist-db@latest
 
 # Build the application for production
 RUN npm run build:prod
