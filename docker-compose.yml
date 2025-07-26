@@ -15,6 +15,8 @@ services:
       - NODE_ENV=production
       - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
       - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-https://supabase.n8n-tech.cloud/functions/v1}
+      - VITE_ENABLE_API=${VITE_ENABLE_API:-true}
     volumes:
       # Mount logs for monitoring
       - ./logs:/var/log/nginx
